@@ -1,0 +1,3 @@
+* README
+** This is my Emacs init config. It is a "all-in-one" config file, so it is friendly for beginner.
+** This init config refer to Bozhidar's Emacs config and xahlee's Emacs blog. Thanks!
