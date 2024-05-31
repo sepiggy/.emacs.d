@@ -211,14 +211,7 @@
 
 (global-set-key (kbd "C-c C-l") 'copy-line)
 
-;; select current line
-(defun select-current-line ()
-  "Select the current line."
-  (interactive)
-  (move-end-of-line nil)
-  (set-mark (line-beginning-position)))
 
-(global-set-key (kbd "C-S-l") 'select-current-line)  ;; 将 C-S-l 绑定到选择当前行
 
 (require 'use-package)
 (setq use-package-verbose t)
@@ -226,7 +219,8 @@
 ;;; built-in packages
 (use-package paren
   :config
-  (show-paren-mode +1))
+  (show-paren-mode +1)
+  (setq show-paren-style 'mixed))
 
 (use-package elec-pair
   :config
@@ -976,5 +970,126 @@ Start `ielm' if it's not already running."
     (insert (format ";; => %s" result))))
 
 (global-set-key (kbd "C-c e") 'eval-multiline-expr-and-comment)
+
+(defun xah-new-empty-buffer ()
+  "Create a new empty buffer.
+Returns the buffer object.
+New buffer is named untitled, untitled<2>, etc.
+
+Warning: new buffer is not prompted for save when killed, see `kill-buffer'.
+Or manually `save-buffer'
+
+URL `http://xahlee.info/emacs/emacs/emacs_new_empty_buffer.html'
+Version: 2017-11-01 2022-04-05"
+  (interactive)
+  (let ((xbuf (generate-new-buffer "untitled")))
+    (switch-to-buffer xbuf)
+    (funcall initial-major-mode)
+    xbuf
+    ))
+
+(global-set-key (kbd "<f7> <f7>") 'xah-new-empty-buffer)
+(setq initial-buffer-choice 'xah-new-empty-buffer)
+
+(defun xah-next-user-buffer ()
+  "Switch to the next user buffer.
+“user buffer” is determined by `xah-user-buffer-q'.
+URL `http://xahlee.info/emacs/emacs/elisp_next_prev_user_buffer.html'
+Version 2016-06-19"
+  (interactive)
+  (next-buffer)
+  (let ((i 0))
+    (while (< i 20)
+      (if (not (xah-user-buffer-q))
+          (progn (next-buffer)
+                 (setq i (1+ i)))
+        (progn (setq i 100))))))
+
+(defun xah-previous-user-buffer ()
+  "Switch to the previous user buffer.
+“user buffer” is determined by `xah-user-buffer-q'.
+URL `http://xahlee.info/emacs/emacs/elisp_next_prev_user_buffer.html'
+Version 2016-06-19"
+  (interactive)
+  (previous-buffer)
+  (let ((i 0))
+    (while (< i 20)
+      (if (not (xah-user-buffer-q))
+          (progn (previous-buffer)
+                 (setq i (1+ i)))
+        (progn (setq i 100))))))
+
+(defun xah-user-buffer-q ()
+  "Return t if current buffer is a user buffer, else nil.
+Typically, if buffer name starts with *, it's not considered a user buffer.
+This function is used by buffer switching command and close buffer command, so that next buffer shown is a user buffer.
+You can override this function to get your idea of “user buffer”.
+version 2016-06-18"
+  (interactive)
+  (if (string-equal "*" (substring (buffer-name) 0 1))
+      nil
+    (if (string-equal major-mode "dired-mode")
+        nil
+      t
+      )))
+
+(global-set-key (kbd "<f11>") 'xah-previous-user-buffer)
+(global-set-key (kbd "<f12>") 'xah-next-user-buffer)
+
+(defun xah-select-line ()
+  "Select current line. If region is active, extend selection downward by line.
+If `visual-line-mode' is on, consider line as visual line.
+
+URL `http://xahlee.info/emacs/emacs/emacs_select_line.html'
+Version: 2017-11-01 2023-07-16 2023-11-14"
+  (interactive)
+  (if (region-active-p)
+      (if visual-line-mode
+          (let ((xp1 (point)))
+            (end-of-visual-line 1)
+            (when (eq xp1 (point))
+              (end-of-visual-line 2)))
+        (progn
+          (forward-line 1)
+          (end-of-line)))
+    (if visual-line-mode
+        (progn (beginning-of-visual-line)
+               (push-mark (point) t t)
+               (end-of-visual-line))
+      (progn
+        (push-mark (line-beginning-position) t t)
+        (end-of-line)))))
+
+(global-set-key (kbd "C-S-l") 'xah-select-line)
+
+(defvar xah-brackets '("“”" "()" "[]" "{}" "<>" "＜＞" "（）" "［］" "｛｝" "⦅⦆" "〚〛" "⦃⦄" "‹›" "«»" "「」" "〈〉" "《》" "【】" "〔〕" "⦗⦘" "『』" "〖〗" "〘〙" "｢｣" "⟦⟧" "⟨⟩" "⟪⟫" "⟮⟯" "⟬⟭" "⌈⌉" "⌊⌋" "⦇⦈" "⦉⦊" "❛❜" "❝❞" "❨❩" "❪❫" "❴❵" "❬❭" "❮❯" "❰❱" "❲❳" "〈〉" "⦑⦒" "⧼⧽" "﹙﹚" "﹛﹜" "﹝﹞" "⁽⁾" "₍₎" "⦋⦌" "⦍⦎" "⦏⦐" "⁅⁆" "⸢⸣" "⸤⸥" "⟅⟆" "⦓⦔" "⦕⦖" "⸦⸧" "⸨⸩" "｟｠")
+ "A list of strings, each element is a string of 2 chars, the left bracket and a matching right bracket.
+Used by `xah-select-text-in-quote' and others.
+Version 2023-07-31")
+
+(defconst xah-left-brackets
+  (mapcar (lambda (x) (substring x 0 1)) xah-brackets)
+  "List of left bracket chars. Each element is a string.")
+
+(defconst xah-right-brackets
+  (mapcar (lambda (x) (substring x 1 2)) xah-brackets)
+  "List of right bracket chars. Each element is a string.")
+
+(defun xah-select-text-in-quote ()
+  "Select text between the nearest left and right delimiters.
+Delimiters here includes QUOTATION MARK, GRAVE ACCENT, and anything in `xah-brackets'.
+This command ignores nesting. For example, if text is
+「(a(b)c▮)」
+the selected char is 「c」, not 「a(b)c」.
+
+URL `http://xahlee.info/emacs/emacs/emacs_select_quote_text.html'
+Version: 2020-11-24 2023-07-23 2023-11-14"
+  (interactive)
+  (let ((xskipChars (concat "^\"`" (mapconcat #'identity xah-brackets ""))))
+    (skip-chars-backward xskipChars)
+    (push-mark (point) t t)
+    (skip-chars-forward xskipChars)))
+
+(global-set-key (kbd "C-S-w") 'xah-select-text-in-quote)
 
 ;;; init.el ends here
